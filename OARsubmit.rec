@@ -1,0 +1,37 @@
+#!/bin/bash
+
+
+# INPUT ARGUMENT 
+# your case scan name, or whatever your called it (of course case sensitive)
+CASENAME=$1
+# number of projections in the scan		  (later it can be modified to be read directly from the ini file)	
+NBPROJ=$2
+
+################  hard coded here  ====> change to your file location ################
+INIFILEPATH="/data/bm05/bm05staff/seb/library/laurene/CodeTomo/Tomo_MIST.ini"
+PYTOMOSCRIPT="/data/bm05/bm05staff/seb/library/laurene/CodeTomo/TomoMIST.py"
+# smaller NBCOREPERJOB is better for granularity(shorter waiting time for ressource allocation)
+# but longer for each job calculatin
+#NBCOREPERJOB=3
+# number of image per jobs=> less images will generate more jobs, but mind the limit which is when the computing service show up in your office to tell you...
+NBIMPERJOB=10
+#######################################################################################
+
+NBJOBS=$((NBPROJ/NBIMPERJOB))
+
+echo "Computing case named: $CASENAME"
+echo "Will process $NBPROJ projs with $NBJOBS jobs on the cluster OAR" 
+echo "Number of proj computed per job was set to $NBIMPERJOB in the script"
+# compute the projection number 0
+oarsub -S "./OAR_general.sh $PYTOMOSCRIPT $INIFILEPATH $CASENAME 0"
+# compute the other projections
+oarsub --array $NBJOBS -S "./OAR_general.sh $PYTOMOSCRIPT $INIFILEPATH $CASENAME $NBIMPERJOB"
+# the remaining of the projections
+NIMTREATED=$(($NBJOBS*$NBIMPERJOB))
+if [ $NIMTREATED -ne $NBPROJ ]; then
+	echo "Job for the remaining projections (modulo of the division)"
+	oarsub -S "./OAR_general.sh $PYTOMOSCRIPT $INIFILEPATH $CASENAME -1 $((NIMTREATED+1)) $NBPROJ"
+fi
+
+
+
